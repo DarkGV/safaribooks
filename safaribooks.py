@@ -11,6 +11,7 @@ import logging
 import argparse
 import requests
 import traceback
+import pdfkit
 from html import escape
 from random import random
 from lxml import html, etree
@@ -403,6 +404,8 @@ class SafariBooks:
 
         self.display.info("Creating EPUB file...", state=True)
         self.create_epub()
+        self.display.info("Creating PDF file...", state=True)
+        self.create_pdf()
 
         if not args.no_cookies:
             json.dump(self.session.cookies.get_dict(), open(COOKIES_FILE, "w"))
@@ -1043,6 +1046,22 @@ class SafariBooks:
         shutil.make_archive(zip_file, 'zip', self.BOOK_PATH)
         os.rename(zip_file + ".zip", os.path.join(self.BOOK_PATH, self.book_id) + ".epub")
 
+    def create_pdf(self):
+        pdfFile = os.path.join(PATH, "Books", self.book_id)
+        filesMetadata = os.path.join(self.BOOK_PATH, "OEBPS", "content.opf")
+        pdfkitOptions = {
+            "enable-local-file-access": None,
+            "quiet": None
+        }
+        filesMetadataPointer = open(filesMetadata, mode='r')
+        filesMetadataContent = filesMetadataPointer.read()
+        bookManifest = etree.fromstring(bytes(filesMetadataContent, 'utf-8'))[1]
+        htmlfiles = []
+        for item in bookManifest:
+            reference = item.get('href')
+            if reference.endswith('.xhtml'):
+                htmlfiles.append(os.path.join(self.BOOK_PATH, "OEBPS", reference))
+        pdfkit.from_file(htmlfiles, pdfFile+".pdf", options=pdfkitOptions)
 
 # MAIN
 if __name__ == "__main__":
